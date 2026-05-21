@@ -1,0 +1,40 @@
+# =============================================================
+# OS / editor junk
+# =============================================================
+.DS_Store
+*.swp
+*~
+
+# =============================================================
+# Obsidian — machine-local state, not the vault itself
+# =============================================================
+.obsidian/workspace
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.obsidian/graph.json
+
+# =============================================================
+# Claude Code — local-only settings & credentials
+# =============================================================
+.claude/settings.local.json
+.claude/.credentials*
+
+# =============================================================
+# Personal context — never committed
+#   Memory.md is your private profile; each user maintains their own.
+#   wiki/people/{YourName}.md is about you and your family — not work artifacts.
+# =============================================================
+Memory.md
+wiki/people/_self.md
+
+# =============================================================
+# Slack DMs — 1:1 conversations, never shared even with the team
+# =============================================================
+raw-sources/slack/dm-*/
+
+# =============================================================
+# Logs (local execution traces, may contain ephemeral tokens in errors)
+# =============================================================
+*.log
+.logs/
