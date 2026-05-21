@@ -140,7 +140,7 @@ Now `brain` works the same on every device.
 
 | Action | Main Mac | Other devices |
 |---|---|---|
-| `/sync-all` (the daily Granola/Linear/Slack pull) | ✅ via launchd at 10:00 AM | ❌ skip — only one writer |
+| `/sync-all` (the daily pull from your connected MCPs — meetings, tasks, chat, etc.) | ✅ via launchd at 10:00 AM | ❌ skip — only one writer |
 | `git pull` (hourly auto-pull) | optional | ✅ via launchd |
 | Read in Obsidian | ✅ | ✅ |
 | Ask Claude questions | ✅ | ✅ |

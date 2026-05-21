@@ -18,14 +18,14 @@ A personal, LLM-maintained knowledge base. A folder of plain markdown files that
 
 A folder on your Mac that:
 
-1. Holds every Granola meeting you ever recorded as plain markdown (with full verbatim transcripts).
-2. Holds every Linear ticket assigned to or touching you, refreshed on demand.
+1. Holds every meeting you've recorded as plain markdown (with full verbatim transcripts) — via whatever transcription service you use.
+2. Holds every task or ticket from your project tracker, refreshed on demand.
 3. Has a Claude-maintained wiki of people, projects, decisions, and concepts, all cross-linked.
-4. Produces a **daily inbox** every morning at 10:00 AM — last 24h of meetings, Linear, and Slack mentions — without you doing anything.
+4. Produces a **daily inbox** every morning at 10:00 AM — last 24h of meetings, tasks, and chat activity — without you doing anything.
 5. Opens in Obsidian as a navigable graph.
 6. Opens in Claude Code so you can ask questions about your own work and get answers grounded in your real history.
 
-You drive it with four slash commands, one shell alias, and one `launchd` job that fires the sync every morning.
+You drive it with four slash commands, one shell alias, and one `launchd` job that fires the sync every morning. **You pick which external services it pulls from** — the pattern is generic; Step 6 lists 50+ MCPs across categories so you can wire up whichever stack you actually use.
 
 ---
 
@@ -33,19 +33,19 @@ You drive it with four slash commands, one shell alias, and one `launchd` job th
 
 Before you start setting up, here's the shape of what you're building. Five moving parts:
 
-1. **External sources** — Granola, Linear, Slack. They live outside the vault. Claude reaches them through MCPs (Step 6).
-2. **`raw-sources/`** — the immutable archive. One markdown file per Granola meeting (with frontmatter + full verbatim transcript), one per Linear ticket export, one per Slack channel dump. Claude reads from here; nothing else writes to it except the sync commands.
+1. **External sources** — whichever services you want pulled in. Meetings (e.g. Granola, Otter, Fathom), tasks (Linear, Jira, Asana, Notion), chat (Slack, Discord, Teams), plus optionally email, calendar, docs, code, CRM. They live outside the vault. Claude reaches them through MCPs (Step 6 lists 50+ options).
+2. **`raw-sources/`** — the immutable archive. One markdown file per meeting (with frontmatter + full verbatim transcript), one per task / ticket export, one per chat channel dump, one per anything else you ingest. Claude reads from here; nothing else writes to it except the sync commands.
 3. **`wiki/`** — the curated synthesis. People, projects, concepts, decisions, reports. Cross-linked. This is what you actually read day-to-day. Claude maintains it.
-4. **`Daily/`** — your morning inbox. One file per day, written by `/sync-all`. Last 24 hours of meetings (with `[[wikilinks]]` into `raw-sources/` and `wiki/people/`), Linear issues assigned to you, Slack mentions + DMs awaiting reply.
+4. **`Daily/`** — your morning inbox. One file per day, written by `/sync-all`. Last 24 hours of meetings (with `[[wikilinks]]` into `raw-sources/` and `wiki/people/`), tasks assigned to you, chat mentions + DMs awaiting reply.
 5. **`CLAUDE.md` + `Memory.md`** — read every session before Claude responds. CLAUDE.md says how the system works; Memory.md says who you are.
 
 The daily loop, in one line:
 
-> at 10:00 AM `launchd` runs `/sync-all` silently → it writes today's `Daily/{date}.md` + adds any new meetings to `raw-sources/granola-meetings/` → you open `Daily/{today}.md` in Obsidian over coffee → wikilinks pull you into the rest of the wiki when something interests you.
+> at 10:00 AM `launchd` runs `/sync-all` silently → it writes today's `Daily/{date}.md` + adds any new meetings to `raw-sources/meetings/` → you open `Daily/{today}.md` in Obsidian over coffee → wikilinks pull you into the rest of the wiki when something interests you.
 
 The bulk loop, for backfills:
 
-> `/sync-granola` and `/sync-linear` pull full history into `raw-sources/`. `/wiki-refresh` curates the wiki — promoting red-links to pages, fixing drift. You run these manually, occasionally.
+> `/sync-{meetings}` and `/sync-{tasks}` pull full history into `raw-sources/`. `/wiki-refresh` curates the wiki — promoting red-links to pages, fixing drift. You run these manually, occasionally.
 
 Everything is plain markdown. Obsidian renders the `[[wikilinks]]` as a clickable graph. Git versions every change if you opted into git in Step 2.
 
@@ -172,7 +172,7 @@ second-brain/
 ├── Memory.md                  your personality — Claude reads this every session
 │
 ├── Daily/                     daily snapshots (one .md per day, written by /sync-all)
-│   └── 2026-05-21.md          today's meetings, Linear issues, Slack mentions
+│   └── 2026-05-21.md          today's meetings, tasks, chat mentions
 │
 ├── wiki/                      Claude-maintained synthesis — this is what you read
 │   ├── index.md               catalog of every wiki page
@@ -185,13 +185,13 @@ second-brain/
 │   └── reports/               audit reports, retros, deep-dives
 │
 ├── raw-sources/               immutable inputs — Claude reads, never modifies
-│   ├── granola-meetings/      one .md per meeting (frontmatter + full transcript)
-│   ├── linear/                Linear ticket exports
-│   └── slack/                 Slack channel archives (opt-in)
+│   ├── {meetings}/            one .md per meeting (frontmatter + full transcript) — folder named after your meeting service
+│   ├── {tasks}/               task / ticket exports — folder named after your tracker
+│   └── {chat}/                chat channel archives (opt-in) — folder named after your chat service
 │
 ├── .claude/commands/          your slash commands (created in Step 4b)
-│   ├── sync-granola.md
-│   ├── sync-linear.md
+│   ├── sync-{meetings}.md     e.g. sync-granola.md, sync-otter.md, sync-fathom.md
+│   ├── sync-{tasks}.md        e.g. sync-linear.md, sync-jira.md, sync-asana.md
 │   ├── sync-all.md
 │   └── wiki-refresh.md
 ├── .logs/                     launchd job logs (Step 9 creates this)
@@ -265,16 +265,28 @@ Extend it: prepend a bootstrap section at the top of CLAUDE.md that:
 - Asserts that the wiki is the source of truth — never respond with "I don't have information about X" without first checking wiki/index.md.
 
 Then create the supporting files:
-- Empty folders: raw-sources/, raw-sources/granola-meetings/, raw-sources/linear/, raw-sources/slack/, wiki/people/, wiki/projects/, wiki/meetings/, wiki/decisions/, wiki/concepts/, wiki/reports/, Daily/.
-- A .keep file inside Daily/ so the folder commits cleanly when empty (the daily sync writes the actual content).
-- wiki/index.md (empty catalog placeholder) and wiki/log.md (empty log placeholder).
-- .claude/commands/sync-granola.md — pulls new Granola meetings into raw-sources/granola-meetings/ (full verbatim transcripts via `get_meeting_transcript`, plus notes and action items — not just summaries), writes wiki summaries to wiki/meetings/, updates indexes.
-- .claude/commands/sync-linear.md — refreshes Linear ticket archive into raw-sources/linear/ and wiki/linear/.
-- .claude/commands/sync-all.md — **daily snapshot** (last 24h window, not full history). Writes Daily/{YYYY-MM-DD}.md with three sections: Meetings (from Granola), Linear (issues assigned to you), Slack (mentions + DMs awaiting reply). For each meeting in the window: also write a full per-meeting file to raw-sources/granola-meetings/{date}-{slug}.md matching the format of existing files in that folder (frontmatter with `granola_id`, summary, full verbatim transcript) — idempotent by `granola_id` so re-runs don't double-write. In the Daily file's Meetings section, link to those per-meeting files with `[[../raw-sources/granola-meetings/{date}-{slug}|{title}]]` and link attendees as `[[Name]]` when `wiki/people/{Name}.md` exists. This is the skill the launchd job in Step 9 invokes daily; it's also safe to run manually.
-- .claude/commands/wiki-refresh.md — cross-link audit, red-link promotion candidates, index drift, orphan check.
-- .gitignore — excludes Memory.md, .claude/.credentials*, *.log, .obsidian/workspace*.
 
-Each slash command should be idempotent (re-running with no new sources is a no-op), quiet by default (only print at meaningful checkpoints), and fail-soft (one step failing logs to wiki/log.md and the chain continues).
+**Folders:**
+- `raw-sources/` and category subfolders for whichever services you'll connect in Step 6. Examples: `raw-sources/granola-meetings/` (or `otter-meetings/`, `fathom-meetings/` — whatever you use), `raw-sources/linear/` (or `jira/`, `asana/`, `notion/`), `raw-sources/slack/` (or `discord/`, `teams/`). The folder name should match the source — one folder per service.
+- `wiki/people/`, `wiki/projects/`, `wiki/meetings/`, `wiki/decisions/`, `wiki/concepts/`, `wiki/reports/`.
+- `Daily/` with a `.keep` file inside so the folder commits cleanly when empty.
+
+**Placeholder files:**
+- `wiki/index.md` (empty catalog placeholder).
+- `wiki/log.md` (empty log placeholder).
+
+**Slash commands** — one per source you plan to connect, plus the daily aggregator:
+
+- `.claude/commands/sync-{meetings}.md` (e.g. `sync-granola.md`) — pulls new meetings into `raw-sources/{source}-meetings/` with full verbatim transcripts, not just summaries. If your meeting service offers a transcript tool, use it.
+- `.claude/commands/sync-{tasks}.md` (e.g. `sync-linear.md`) — refreshes the ticket / task archive into `raw-sources/{source}/`.
+- (optional, one per other source you want bulk pulls for — e.g. sync-notion, sync-gmail.)
+- `.claude/commands/sync-all.md` — **daily snapshot** (last 24h window, not full history). Writes `Daily/{YYYY-MM-DD}.md` with one section per connected source: a Meetings section (from whatever meeting MCP), a Tasks section (issues/tickets assigned to me), a Chat section (mentions + DMs awaiting reply), plus any other sources I've added. For each meeting in the window: also write a full per-meeting file to `raw-sources/{source}-meetings/{date}-{slug}.md` with frontmatter (including `{source}_id` field), summary, action items, and full verbatim transcript — idempotent by `{source}_id` so re-runs don't double-write. In the Daily file's Meetings section, link to those per-meeting files with `[[../raw-sources/{source}-meetings/{date}-{slug}|{title}]]` and link attendees as `[[Name]]` when `wiki/people/{Name}.md` exists. For each source: if the MCP isn't connected or returns an auth error, write `_Not connected — skipped._` under that section and continue. This is the skill the launchd job in Step 9 invokes daily; it's also safe to run manually.
+- `.claude/commands/wiki-refresh.md` — cross-link audit, red-link promotion candidates, index drift, orphan check.
+- `.gitignore` — excludes `Memory.md`, `.claude/.credentials*`, `*.log`, `.obsidian/workspace*`.
+
+Each slash command should be idempotent (re-running with no new sources is a no-op), quiet by default (only print at meaningful checkpoints), and fail-soft (one step failing logs to `wiki/log.md` and the chain continues).
+
+> **Note:** the prompt above uses Granola, Linear, and Slack as examples because they're popular. Substitute the services you actually use — see Step 6 for 50+ MCP options across categories. Claude will adapt the slash commands to whatever you tell it to use.
 ```
 
 Claude reads the gist you saved, prepends bootstrap rules to your `CLAUDE.md`, and writes the supporting files to disk. Review the result. Adjust anything that does not match how you want to work.
@@ -305,12 +317,12 @@ Once generated, these become available when you run `claude` from the vault fold
 
 | Command | What it does |
 |---|---|
-| `/sync-granola` | Pulls new Granola meetings — **full verbatim transcripts**, notes, and action items — into `raw-sources/granola-meetings/`, plus wiki summaries |
-| `/sync-linear` | Refreshes the Linear archive from the GraphQL API |
-| `/sync-all` | **Daily snapshot** — last 24h of meetings, Linear issues, and Slack mentions/DMs into `Daily/{date}.md`. Also writes each new meeting to `raw-sources/granola-meetings/` and cross-links via `[[wikilinks]]`. This is the skill the Step 9 launchd job runs daily. |
+| `/sync-{meetings}` | Pulls new meetings — **full verbatim transcripts**, notes, and action items — into `raw-sources/{source}-meetings/`, plus wiki summaries. Example: `/sync-granola`, `/sync-otter`. |
+| `/sync-{tasks}` | Refreshes the task / ticket archive from your project tracker. Example: `/sync-linear`, `/sync-jira`, `/sync-asana`. |
+| `/sync-all` | **Daily snapshot** — last 24h of meetings, tasks, and chat mentions/DMs into `Daily/{date}.md`. Also writes each new meeting to `raw-sources/{source}-meetings/` and cross-links via `[[wikilinks]]`. This is the skill the Step 9 launchd job runs daily. |
 | `/wiki-refresh` | Audits cross-links, red-links, orphans after an ingest |
 
-You only need the ones you use. Most people start with just `/sync-granola` and `/sync-linear`.
+You only need the ones you use. Most people start with one meeting sync + one task sync, then add more sources later.
 </details>
 
 <details>
@@ -435,7 +447,7 @@ This file drifts faster than any other. If it drifts, every conversation drifts 
 
 ## 6. Connect data sources
 
-MCP stands for Model Context Protocol. It is the bridge that lets Claude read external services like Granola or Linear as if they were native tools.
+MCP stands for **Model Context Protocol**. It's the bridge that lets Claude read external services (meetings, tasks, chat, email, anything) as if they were native tools. You pick which ones to connect — the pattern works with any combination.
 
 <details>
 <summary><strong>Quick framing — API vs MCP vs Connector (worth reading once)</strong></summary>
@@ -444,7 +456,7 @@ Three layers of the same stack, not three alternatives.
 
 | Layer | Where it runs | What it is | Best for |
 |---|---|---|---|
-| **API** (raw GraphQL / REST) | Your scripts | The service's actual door. Universal, lowest level. You handle auth, pagination, rate limits. | Bulk one-time exports. Recurring automation. The sync commands (`/sync-linear` talks to Linear's GraphQL directly). No tokens burned. |
+| **API** (raw GraphQL / REST) | Your scripts | The service's actual door. Universal, lowest level. You handle auth, pagination, rate limits. | Bulk one-time exports. Recurring automation. Sync commands that talk to a service's GraphQL directly. No tokens burned. |
 | **MCP** (Model Context Protocol) | Claude Code (terminal) | A wrapper around the API that exposes tools the model can call. | Claude in the terminal working alongside your filesystem, git, IDE. |
 | **Connector** | Claude.ai web / mobile | Productized MCP with one-click OAuth, deferred loading, and a UI toggle. Under the hood it's still MCP. | Casual ticket / doc lookups in the browser when you are not in the terminal. |
 
@@ -455,122 +467,262 @@ Three layers of the same stack, not three alternatives.
 
 **Rule of thumb:** go up the stack until you have enough power, then stop.
 
-- Vault sync → API path.
+- Vault sync → API path (fastest, cheapest).
 - Interactive use while you are in Claude Code → MCP path.
 - Browser-based lookups when you are not in the terminal → Connector path.
 
 </details>
 
-Each MCP is registered with a single command, run from inside your vault folder. If you opened a new terminal since Step 2, `cd` back in first:
+### How to register an MCP
+
+From your shell (inside the vault folder, or anywhere if you use `--scope user`):
 
 ```bash
-cd ~/Documents/second-brain
-```
-
-Then for each MCP you want, run a one-liner. The shape is always:
-
-```
 claude mcp add --transport http <name> <url>
 ```
 
-The first time Claude actually uses each MCP, a browser tab opens for OAuth sign-in. That is the only browser step.
+That's the shape for **hosted (HTTP) MCPs** — the vendor runs the server, you just point Claude at it. First time Claude uses each one, a browser tab opens for OAuth. That's the only browser step.
 
-<details>
-<summary><strong>Granola</strong> — meeting transcripts</summary>
+For **stdio MCPs** (community servers that run locally as a subprocess), the shape differs — usually `claude mcp add <name> -- npx -y <package>` with env vars for credentials. Each table row below gives the exact command.
 
-```bash
-claude mcp add --transport http granola https://mcp.granola.ai/mcp
-```
-
-The first time Claude reads Granola, a browser tab opens. Sign in with the same Granola account that records your meetings.
-
-To verify, in a terminal:
+Verify your registrations any time with:
 
 ```bash
 claude mcp list
 ```
 
-You should see `granola — ✓ Connected`.
+### Pick your stack — ~85 MCPs across 13 categories
 
-**Tip:** open Granola → Preferences → Internal jargon, and add the names of your colleagues. This stops the transcription from mishearing names.
+You don't need them all. Most readers wire up 3–6: a meeting tool, a task tracker, a chat tool, maybe email/calendar. **The first three categories below are the core of the daily sync** — everything else is optional power-ups.
+
+**Type column key:**
+- **Official** = vendor builds and hosts the MCP. Most reliable.
+- **Community** = third-party. Read the linked repo before installing — names, flags, and packages drift.
+- **(none)** = no MCP exists yet — use the vendor's API directly, skip, or wait.
+
+#### Core trio (the daily sync uses these)
+
+<details>
+<summary><strong>Meetings & transcription</strong> — 13 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Granola | Official | `claude mcp add --transport http granola https://mcp.granola.ai/mcp` | Lists meetings, fetches full verbatim transcripts, browses folders; OAuth |
+| Otter.ai | Official | `claude mcp add --transport http otter https://mcp.otter.ai/mcp` | Full-text search and retrieval of meeting transcripts |
+| Fathom | Community | `claude mcp add fathom -e FATHOM_API_KEY=<key> -- node /path/to/fathom-mcp/dist/index.js` | List/search meetings, fetch transcripts and action items, export, webhooks |
+| Fireflies.ai | Official | `claude mcp add --transport http fireflies https://api.fireflies.ai/mcp` | Meeting transcripts, summaries, action items, speaker metadata |
+| tl;dv | Official | `claude mcp add tldv -e TLDV_API_KEY=<key> -- npx -y @tldv/tldv-mcp-server` | List meetings, fetch transcripts and AI highlights across Google Meet, Zoom, MS Teams (Business/Enterprise plan) |
+| Read.ai | Official (open beta) | Add as custom connector via Claude UI — URL distributed in Read.ai's MCP help article | Read.ai meeting summaries, transcripts, action items |
+| Krisp | Official | `claude mcp add --transport http krisp https://mcp.krisp.ai/mcp` | 14 tools: transcript ops, knowledge graph queries, productivity actions |
+| Grain | Official | `claude mcp add --transport http grain https://api.grain.com/_/mcp` | Meetings, recordings, transcripts, deals, coaching scorecards (paid plans) |
+| Avoma | Official | `claude mcp add avoma -- npx mcp-remote https://mcp.avoma.com/mcp --header "Authorization: Bearer <key>"` | Transcripts, notes, deal insights |
+| Sembly | Official | `claude mcp add --transport http sembly https://mcp.sembly.ai/mcp` (EU: `mcp-eu.sembly.ai`) | Search and read meetings, summaries, key points, action items |
+| Tactiq | (none) | — | No first-party MCP; only third-party bridges (Zapier, viaSocket) |
+| Modjo | (none public) | — | Marketing mentions MCP, no public endpoint published |
+| Loom | (none official) | — | No vendor MCP; community variants exist for video download |
+
 </details>
 
 <details>
-<summary><strong>Linear</strong> — tickets (three paths, pick what you need)</summary>
+<summary><strong>Tasks & project tracking</strong> — 14 options</summary>
 
-Linear is the clearest example of the API / MCP / Connector tradeoff. All three are valid; they serve different jobs.
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Linear | Official | `claude mcp add --transport http linear https://mcp.linear.app/mcp` | Issues, projects, teams, cycles, labels, comments, initiatives, milestones (read + write) |
+| Jira / Confluence (Atlassian) | Official | `claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp` | Jira issues, Confluence pages, Compass components; OAuth |
+| Asana | Official | `claude mcp add --transport http asana https://mcp.asana.com/v2/mcp` | Tasks, projects, portfolios, teams, comments, attachments; requires OAuth client ID + secret |
+| Notion | Official | `claude mcp add --transport http notion https://mcp.notion.com/mcp` | Pages, databases, comments, workspace search (read + write) |
+| ClickUp | Official | `claude mcp add --transport http clickup https://mcp.clickup.com/mcp` | Tasks, lists, folders, docs, time entries, comments, chat (public beta) |
+| Monday.com | Official (stdio) | `claude mcp add monday-api-mcp -- npx @mondaydotcomorg/monday-api-mcp@latest -e MONDAY_TOKEN=<token>` | Boards, items, columns, updates, users |
+| Shortcut | Official | `claude mcp add --transport http shortcut https://mcp.shortcut.com/mcp` | Stories, epics, iterations, labels, custom fields, objectives, teams, projects |
+| Todoist | Official (Doist) | `claude mcp add --transport http todoist https://ai.todoist.net/mcp` | Tasks, projects, labels, filters, comments |
+| Airtable | Official | `claude mcp add --transport http airtable https://mcp.airtable.com/mcp` | Bases, tables, fields, records, interfaces |
+| Smartsheet | Official | `claude mcp add --transport http smartsheet https://mcp.smartsheet.com -H "Authorization: Bearer $SMARTSHEET_API_TOKEN"` | Sheets, rows, columns, workspaces, attachments (Business/Enterprise) |
+| Trello | Community | `claude mcp add trello -- npx -y @delorenj/mcp-server-trello` (Trello API key + token env vars) | Boards, lists, cards, checklists, labels, comments |
+| Basecamp | Community | `claude mcp add basecamp -- npx -y basecamp-mcp` (37signals OAuth app) | Projects, todos, messages, comments, schedules |
+| Pivotal Tracker | (none / router only) | Use a Composio/Pipedream router URL | Limited — typically just create project / create story |
+| Height | (shut down) | — | Height ceased operations Sept 2025 |
 
-**Path 1 — API key (required for `/sync-linear` to write tickets into your vault)**
+</details>
 
-Go to Linear → Settings → API → Personal API keys → create one → copy the value (looks like `lin_api_…`).
+<details>
+<summary><strong>Chat & messaging</strong> — 12 options</summary>
 
-In Terminal:
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Slack | Official | `claude mcp add --transport http slack https://mcp.slack.com/mcp` | Search, read/send messages, channels, DMs, mentions, canvases |
+| Discord | Community | `claude mcp add discord -e DISCORD_BOT_TOKEN=<token> -- npx -y discord-mcp@latest` | Send/read channel messages, manage channels, roles, reactions, webhooks (self-hosted bot) |
+| Microsoft Teams | Official (Work IQ, preview) | `claude mcp add --transport http teams https://agent365.svc.cloud.microsoft/agents/tenants/<TENANT>/mcp_TeamsServer` | Chats, channels, messages, members (M365 Copilot license; tenant-scoped) |
+| Mattermost | Community | `claude mcp add mattermost -e MATTERMOST_URL=<url> -e MATTERMOST_TOKEN=<token> -- npx -y @cloud-ru-tech/mcp-server-mattermost` | Read/send messages, manage channels, search, file uploads |
+| Telegram | Community | `claude mcp add telegram -- npx -y @chaindead/telegram-mcp` (MTProto; API ID/hash + login) | Personal-account access: read/send messages, manage dialogs, drafts, search |
+| WhatsApp | Community | `claude mcp add whatsapp -- uv --directory /path/to/whatsapp-mcp/whatsapp-mcp-server run main.py` (Go bridge required) | Search and read personal messages, contacts, send to people/groups |
+| Signal | Community | `claude mcp add signal -- uvx signal-mcp` (reads from local Signal Desktop) | Read Signal Desktop chats and attachments |
+| Rocket.Chat | Community | Docker-based; see `enyonee/rocketchat-mcp` README | Channels, messages, threads, DMs, reactions, search (~28 tools) |
+| Zulip | Community | `claude mcp add zulip -- npx -y @modelcontextprotocol/server-zulip` (Zulip site + API key) | Send/read messages, search history, resolve users, monitor streams |
+| Element / Matrix | Community | `claude mcp add --transport http matrix http://localhost:3000/mcp` (self-hosted) | List rooms, read message history, search across rooms (15 tools) |
+| Twist | Official (Doist) | `claude mcp add twist -- npx -y @doist/twist-ai` (Twist API token env var) | User info, inbox threads, load thread/conversation, read comments |
+| Google Chat | Community | `claude mcp add gchat -- npx -y google-chat-mcp-server` (Google OAuth credentials) | List spaces, read/send messages, list members |
+
+</details>
+
+#### Communication & calendar
+
+<details>
+<summary><strong>Email</strong> — 6 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Gmail | Official (Google) | `claude mcp add --transport http gmail https://gmailmcp.googleapis.com/mcp/v1` | Search emails, threads, labels, drafts (BYO OAuth client) |
+| Outlook / Microsoft 365 Mail | Official (Claude built-in Connector) | Enable via Claude Settings → Connectors → Microsoft 365 | Outlook mail via delegated Graph |
+| Fastmail | Official | `claude mcp add --transport http fastmail https://api.fastmail.com/mcp` | Email, contacts, calendar via JMAP; OAuth with read/write/send |
+| ProtonMail | Community | See `amotivv/protonmail-mcp` (SMTP send) or `jongaydos/protonmail-mcp-server-for-claude-code` (Proton Bridge) | Send via SMTP or full mailbox access via local Proton Bridge |
+| Apple Mail (macOS) | Community | See `s-morgan-jeffries/apple-mail-mcp`, `jxnl/apple-mcp` (AppleScript) | Read, send, search local Apple Mail |
+| iCloud Mail | Community | See `adamzaidi/icloud-mcp`, `iteratio/icloud-mcp` (IMAP + app-specific password) | iCloud mail |
+
+</details>
+
+<details>
+<summary><strong>Calendar</strong> — 7 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Google Calendar | Official (Google) | `claude mcp add --transport http gcal https://calendarmcp.googleapis.com/mcp/v1` | Events: list/create/update/delete; availability checks; OAuth |
+| Outlook / Microsoft 365 Calendar | Official (Claude built-in Connector) | Enable via Claude Settings → Connectors → Microsoft 365 | Calendar via delegated Graph |
+| Apple Calendar (iCloud) | Community | See `iteratio/icloud-mcp` (CalDAV + app-specific password) | Read/create/update iCloud Calendar events |
+| Cal.com | Official | `claude mcp add --transport http calcom https://mcp.cal.com/mcp` | Bookings, event types, schedules, availability |
+| Calendly | Official | `claude mcp add --transport http calendly https://mcp.calendly.com` | Find slots, create/cancel meetings, manage event types |
+| Fantastical | Official (Claude built-in Connector) | Enable via Claude Settings → Connectors → Browse → Fantastical (Mac, Claude 4.1.10+) | Local Fantastical app events |
+| Fastmail Calendar | Covered by Fastmail MCP above | — | — |
+
+</details>
+
+<details>
+<summary><strong>Docs & notes</strong> — 11 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Notion | Official | `claude mcp add --transport http notion https://mcp.notion.com/mcp` | Pages, databases, comments; OAuth |
+| Atlassian (Confluence + Jira) | Official | `claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse` | Confluence pages, Jira issues, Compass; OAuth 2.1 |
+| Google Drive | Official (Google) | `claude mcp add --transport http gdrive https://drivemcp.googleapis.com/mcp/v1` | List, read, manage Drive files (BYO OAuth client) |
+| Google Docs | Use Google Drive MCP above, or community `a-bonus/google-docs-mcp` (stdio) | — | Drive MCP covers read; community adds editing |
+| Dropbox | Official | `claude mcp add --transport http dropbox https://mcp.dropbox.com/mcp` | Files: search, upload, read, organize, delete |
+| Microsoft 365 (SharePoint + OneDrive) | Official (Claude built-in Connector) | Enable via Claude Settings → Connectors → Microsoft 365 | SharePoint, OneDrive, Teams chats/meetings, Outlook |
+| Coda | Community | `claude mcp add coda -- npx -y coda-mcp@latest` (API_KEY env var) | Coda docs, tables, pages, permissions |
+| Obsidian | Community | `claude mcp add obsidian -- npx -y obsidian-mcp` (varies by maintainer) | Vault read/write, full-text search, backlinks, tags |
+| Roam Research | Official | `claude mcp add roam -- npx -y @roam-research/roam-tools` (local Roam HTTP API) | Read/write/organize Roam graph |
+| OneNote | Community | See `purpleslurple/onenote-mcp-server` README | OneNote notebooks via Microsoft Graph |
+| Evernote | Community | See `brentmid/evernote-mcp-server` README | Note search, read, sync |
+
+</details>
+
+#### Work tools
+
+<details>
+<summary><strong>Code hosting</strong> — 4 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| GitHub | Official | `claude mcp add --transport http github https://api.githubcopilot.com/mcp` | Repos, issues, PRs, code search, Actions |
+| GitLab | Official | `claude mcp add --transport http gitlab https://gitlab.com/api/v4/mcp` (self-hosted: swap base URL) | Projects, repos, issues, MRs, CI/CD |
+| Sourcegraph | Official (Enterprise) | `claude mcp add --transport http sourcegraph https://<your-instance>.sourcegraph.com/.api/mcp/v1` | Cross-repo code search, go-to-def, references, Deep Search |
+| Bitbucket | Official (via Atlassian Rovo) | `claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/sse` (one Rovo MCP covers Bitbucket + Jira + Confluence) | Workspaces, repos, branches, PRs, pipelines |
+
+</details>
+
+<details>
+<summary><strong>Design</strong> — 6 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Figma | Official | `claude mcp add --transport http figma https://mcp.figma.com/mcp` | Read design context, screenshots, components; write designs; Code Connect |
+| Sketch | Official (Sketch 2025.2.4+) | `claude mcp add --transport stdio sketch -- npx -y @sketch-hq/mcp-server` | Read/write Sketch documents via SketchAPI scripting |
+| Penpot | Official | `claude mcp add --transport http penpot http://localhost:4401/mcp` (pairs with Penpot MCP plugin) | Read/modify/create design data in a Penpot file |
+| Pencil (OpenPencil) | Official | `claude mcp add --transport stdio pencil -- npx -y @open-pencil/mcp-server` (HTTP also on port 7601) | Read & write `.pen` files: components, tokens, layout |
+| Mobbin | Official | `claude mcp add --scope user --transport http mobbin https://api.mobbin.com/mcp` | 621k+ real app screens, 142k+ flows for design reference |
+| Adobe XD | (none) | — | Adobe XD is in extended maintenance; no MCP |
+
+</details>
+
+<details>
+<summary><strong>CRM</strong> — 6 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Salesforce | Official | `claude mcp add --transport http salesforce https://api.salesforce.com/platform/mcp/v1/platform/sobject-all` (External Client App + OAuth/PKCE) | sObjects, Flows, Invocable Actions, Data 360, Prompt Builder |
+| HubSpot | Official (beta) | `claude mcp add --transport http --scope user hubspot https://mcp.hubspot.com/anthropic` | Contacts, companies, deals, tickets, products, invoices, quotes |
+| Attio | Official | `claude mcp add --transport http attio https://mcp.attio.com/mcp` | People, companies, deals, tasks, notes, meetings, calls, emails |
+| Close | Official | `claude mcp add --transport http close https://mcp.close.com/mcp` | Leads, opportunities, activities, templates, org data |
+| Pipedrive | Community | `claude mcp add pipedrive -e PIPEDRIVE_API_TOKEN=<token> -- npx -y @iamsamuelfraga/mcp-pipedrive` | Deals, leads, activities, pipelines (API v2) |
+| Copper | (none) | — | Only via third-party gateways (viaSocket, Pipedream, Composio) |
+
+</details>
+
+<details>
+<summary><strong>Customer support / help desks</strong> — 5 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Intercom | Official (US workspaces) | `claude mcp add --transport http intercom https://mcp.intercom.com/mcp` | Conversations, contacts, tickets, Fin data |
+| Zendesk | Community | `claude mcp add zendesk -e ZENDESK_SUBDOMAIN=<sub> -e ZENDESK_EMAIL=<email> -e ZENDESK_API_KEY=<key> -- uvx zendesk-mcp-server` | Tickets, comments, Help Center articles |
+| Help Scout | Community | `claude mcp add helpscout -e HELPSCOUT_APP_ID=<id> -e HELPSCOUT_APP_SECRET=<secret> -- npx -y @drewburchfield/help-scout-mcp-server` | Conversations, customers, mailboxes, support analytics |
+| Front | Community | `claude mcp add frontapp -e FRONT_API_KEY=<key> -- npx -y @zqushair/frontapp-mcp` | Conversations, contacts, accounts, tags, webhooks |
+| Freshdesk | Community | `claude mcp add freshdesk -e FRESHDESK_API_KEY=<key> -e FRESHDESK_DOMAIN=<domain> -- uvx freshdesk-mcp` | Tickets, contacts, agents, companies, conversations |
+
+</details>
+
+<details>
+<summary><strong>Analytics, observability & dev tools</strong> — 8 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Sentry | Official | `claude mcp add --transport http sentry https://mcp.sentry.dev/mcp` | Issues, events, projects, releases, performance data |
+| Datadog | Official | `claude mcp add --transport http datadog https://mcp.datadoghq.com/api/unstable/mcp-server/mcp` (EU: `mcp.datadoghq.eu`; needs `DD-API-KEY` + `DD-APPLICATION-KEY`) | APM, logs, metrics, monitors, dashboards, security signals |
+| PostHog | Official | `claude mcp add --transport http posthog https://mcp.posthog.com/mcp` | Events, insights, feature flags, session replays, experiments |
+| Mixpanel | Official (beta) | `claude mcp add --transport http mixpanel https://mcp.mixpanel.com/mcp` (EU/IN regions available) | Events, funnels, flows, retention, session replays, Boards |
+| Amplitude | Official (beta) | `claude mcp add --transport http amplitude https://mcp.amplitude.com/mcp` | Charts, dashboards, experiments, cohorts, session replay search |
+| Statsig | Official | `claude mcp add --transport http statsig https://api.statsig.com/v1/mcp` | Feature gates, experiments, dynamic configs, layers |
+| LaunchDarkly | Official | `claude mcp add launchdarkly -e LAUNCHDARKLY_API_KEY=<key> -- npx -y @launchdarkly/mcp-server` (or hosted URL from your account) | Feature flags, environments, AgentControl configs, observability |
+| Stripe | Official | `claude mcp add --transport http stripe https://mcp.stripe.com` | Customers, charges, subscriptions, invoices + docs/KB search |
+
+</details>
+
+<details>
+<summary><strong>Web search & research</strong> — 5 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| Exa | Official | `claude mcp add --transport http exa https://mcp.exa.ai/mcp` | Web search, content extraction, research, Websets |
+| Brave Search | Community (Anthropic reference) | `claude mcp add brave-search -e BRAVE_API_KEY=<key> -- npx -y @modelcontextprotocol/server-brave-search` | Web, image, video, news, local search |
+| Tavily | Official | `claude mcp add --transport http tavily "https://mcp.tavily.com/mcp/?tavilyApiKey=<key>"` | Search, extract, map, crawl |
+| Firecrawl | Official | `claude mcp add firecrawl -e FIRECRAWL_API_KEY=<key> -- npx -y firecrawl-mcp` (hosted: `https://mcp.firecrawl.dev/<key>/v2/mcp`) | Scrape, crawl, map, deep research, batch |
+| Perplexity | Official | `claude mcp add perplexity -e PERPLEXITY_API_KEY=<key> -- npx -y @perplexity-ai/mcp-server` | Sonar real-time web search + deep research |
+
+</details>
+
+<details>
+<summary><strong>Storage / files</strong> — 2 options</summary>
+
+| Service | Type | `claude mcp add` command | What it exposes |
+|---|---|---|---|
+| AWS S3 | Official | `claude mcp add aws-s3 -- uvx awslabs.s3-mcp-server@latest` (uses local AWS credentials) | List/get/put/delete buckets and objects |
+| Cloudflare R2 | Official | `claude mcp add --transport sse cloudflare-bindings https://bindings.mcp.cloudflare.com/sse` (Bindings server covers R2 + KV + D1) | R2 buckets + objects |
+
+</details>
+
+### Special case — direct API access for bulk syncs
+
+For high-volume pulls (refreshing thousands of records at once), the **vendor's direct API** is often better than MCP: faster, no token cost, no context pollution. Store an API key in an env var and have your sync skill talk to the API directly via the Bash tool.
+
+Linear example — the same pattern applies to any service with a stable GraphQL/REST API:
 
 ```bash
-echo 'export LINEAR_API_KEY=lin_api_YOUR_KEY_HERE' >> ~/.zshrc
+echo 'export LINEAR_API_KEY=lin_api_YOUR_KEY' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-`/sync-linear` uses this to talk to Linear's GraphQL API directly. Fast, no token cost, no context pollution. This is the path for any automated bulk pull into the vault.
+Now `/sync-linear` can call Linear's GraphQL directly with `curl -H "Authorization: $LINEAR_API_KEY" …`, no MCP involved. Faster + cheaper + no context bloat from large result sets. The MCP path is still useful for interactive ticket lookups — just not for bulk archives.
 
-**Path 2 — MCP in Claude Code (for interactive ticket lookups in the terminal)**
-
-```bash
-claude mcp add --transport http linear https://mcp.linear.app/mcp
-```
-
-The first time Claude reaches for Linear, a browser tab opens for the OAuth sign-in.
-
-Caveats — important:
-
-- The Linear MCP has a lot of tools (issues, projects, teams, cycles, labels, comments). On older Claude Code versions every tool schema loads into your context at session start. Check with `/context`.
-- **Never ask the MCP for "all tickets" or any unfiltered list.** Every record's full JSON gets pulled into context and stays there for the rest of the session. Always filter: assignee, state, cycle, label, last-N-days.
-- If you do not live in the terminal, skip this. Use the Connector path below instead.
-
-**Path 3 — Linear Connector in Claude.ai web (recommended if you are not in the terminal)**
-
-In Claude.ai (web or mobile): Settings → Connectors → Linear → Connect → OAuth.
-
-Why this is often the right choice for casual ticket lookups:
-
-- Deferred tool loading — only a thin index sits in context. Full schemas load on demand when Claude actually needs them.
-- One-click OAuth, no keys to manage.
-- Pagination and result summarization are built in — bulk queries do not blow up your context the same way MCP does.
-
-Tradeoff: Claude.ai web cannot write to your vault folder. To save a ticket dump into your vault from the browser, ask Claude to generate a markdown artifact in chat, then save it into the vault manually. For automated vault sync, use Path 1.
-</details>
-
-<details>
-<summary><strong>Slack</strong> — mentions and DMs (needed for the daily sync)</summary>
-
-```bash
-claude mcp add --transport http slack https://mcp.slack.com/mcp
-```
-
-First time Claude reaches Slack a browser OAuth tab opens. Sign in with your work Slack account.
-
-The daily sync (`/sync-all`, automated in Step 9) uses this to pull your last-24h mentions and DMs awaiting reply into `Daily/{date}.md`. If you skip Slack, the Daily file will show `_Not connected — skipped._` under the Slack section but still pull Granola and Linear.
-
-Full-history Slack channel archives (channel dumps into `raw-sources/slack/`) are a separate, heavier ingest — defer that until the rest of the loop is working.
-</details>
-
-<details>
-<summary><strong>Optional MCPs</strong></summary>
-
-Same pattern. Pick any that fit how you work:
-
-```bash
-claude mcp add --transport http figma  https://mcp.figma.com/mcp
-claude mcp add --transport http mobbin https://api.mobbin.com/mcp
-```
-
-| MCP | Used for |
-|---|---|
-| Figma | Reading Figma frames, Code Connect |
-| Mobbin | Competitor and industry screen references |
-
-Skip anything you do not use. You can always add more later. Each MCP triggers its own browser OAuth flow the first time Claude needs it.
-</details>
+> **Picking your first MCPs:** if you don't know where to start, the most common starter stack is one **meeting** MCP + one **task tracker** MCP + one **chat** MCP. Add email/calendar/docs once the daily sync is running and you want more in `Daily/{date}.md`.
 
 ---
 
@@ -582,19 +734,21 @@ Start a Claude Code session in the vault:
 brain
 ```
 
-Then inside Claude Code, run:
+Then inside Claude Code, run your **meeting sync** to pull historical transcripts. The command name matches whatever you named it in Step 4b:
 
 ```
-/sync-granola
+/sync-{meetings}
 ```
 
-This pulls every Granola meeting you have, writes raw transcripts to `raw-sources/granola-meetings/`, writes wiki summaries to `wiki/meetings/`, and updates the index. This is the one-time bulk backfill — fills the archive with years of history.
+For example, `/sync-granola`, `/sync-otter`, `/sync-fathom` — whichever meeting service you connected in Step 6.
 
-The first run is the heaviest. Subsequent runs take seconds because the command is idempotent (it only fetches what changed).
+This pulls every meeting you have, writes raw transcripts to `raw-sources/{source}-meetings/`, writes wiki summaries to `wiki/meetings/`, and updates the index. This is the one-time bulk backfill — fills the archive with years of history.
 
-After this, the **daily incremental** (Step 9) takes over: `/sync-all` running at 10:00 AM every morning adds new meetings to the same `raw-sources/granola-meetings/` folder and writes a `Daily/{date}.md` snapshot. You shouldn't need to run `/sync-granola` again unless something gets out of sync.
+The first run is the heaviest. Subsequent runs take seconds because the command is idempotent (only fetches what changed).
 
-If you also want Linear history filed locally, run `/sync-linear` now too (requires the `LINEAR_API_KEY` from Step 6).
+After this, the **daily incremental** (Step 9) takes over: `/sync-all` running at 10:00 AM every morning adds new meetings to the same `raw-sources/{source}-meetings/` folder and writes a `Daily/{date}.md` snapshot. You shouldn't need to run the bulk command again unless something gets out of sync.
+
+**If you also want task / ticket history filed locally**, run `/sync-{tasks}` now too (e.g. `/sync-linear`). For services with a stable API (Linear, Jira), this often uses an API key for speed — see the "Special case" at the end of Step 6.
 
 <details>
 <summary><strong>What to expect on screen</strong></summary>
@@ -602,14 +756,14 @@ If you also want Linear history filed locally, run `/sync-linear` now too (requi
 Terminal output looks like:
 
 ```
-Granola sync — 2026-05-20
+{Source} sync — 2026-05-21
 47 new meetings ingested:
+  - 2026-05-20 [meeting title] — [headline decision]
   - 2026-05-19 [meeting title] — [headline decision]
-  - 2026-05-18 [meeting title] — [headline decision]
   - ...
 ```
 
-After it finishes, open Obsidian → File → Open vault → pick the vault folder. You will see `wiki/meetings/` filled with summaries and `wiki/people/`, `wiki/projects/`, etc. populated where Claude inferred entities from the transcripts.
+After it finishes, open Obsidian → File → Open vault → pick the vault folder. You'll see `wiki/meetings/` filled with summaries and `wiki/people/`, `wiki/projects/`, etc. populated where Claude inferred entities from the transcripts.
 
 Click the graph view icon in the left sidebar. This is the moment the system clicks into place visually.
 </details>
@@ -619,14 +773,14 @@ Click the graph view icon in the left sidebar. This is the moment the system cli
 
 Sync commands are designed to be fail-soft. A single failure logs to `wiki/log.md` and the chain continues. Common failures:
 
-- **Granola rate-limited.** Wait a few minutes, re-run. Idempotent.
+- **Rate-limited by the vendor.** Wait a few minutes, re-run. Idempotent.
 - **MCP not connected.** Run `claude mcp list` to check; re-auth if needed.
 - **Permission errors.** Make sure you are running inside the vault folder, not the home directory.
 
 Errors never destroy data. The script never deletes anything. Worst case, you re-run.
 </details>
 
-> **If you picked Memory.md Option B in Step 5**, this is the moment to go back. You now have meetings in `raw-sources/granola-meetings/`. Paste the Option B prompt and Claude will draft `Memory.md` from your meeting history.
+> **If you picked Memory.md Option B in Step 5**, this is the moment to go back. You now have meetings in `raw-sources/{source}-meetings/`. Paste the Option B prompt and Claude will draft `Memory.md` from your meeting history.
 
 ---
 
@@ -634,7 +788,7 @@ Errors never destroy data. The script never deletes anything. Worst case, you re
 
 Assuming you've enabled Step 9's automation, your daily loop is:
 
-1. **Morning — open `Daily/{today}.md` in Obsidian.** The sync wrote it silently at 10:00 AM. Skim the three sections: meetings (with full-transcript wikilinks), Linear issues, Slack mentions + DMs. Two minutes to know what's pending.
+1. **Morning — open `Daily/{today}.md` in Obsidian.** The sync wrote it silently at 10:00 AM. Skim the sections: meetings (with full-transcript wikilinks), tasks assigned to you, chat mentions + DMs. Two minutes to know what's pending.
 2. **Follow wikilinks** as things interest you — clicking a meeting title jumps you into the full transcript in `raw-sources/`; clicking a colleague's name jumps to their wiki page.
 3. **Ask the brain** when context matters. Type `brain` in any terminal, then ask. It reads `Memory.md`, `CLAUDE.md`, and `wiki/index.md` silently first, so every answer is grounded in your actual history.
 4. **File good answers back** — when Claude synthesizes something useful, tell it `file this as a decision page` or `add this as a concept page`. Explorations compound into the encyclopedia instead of disappearing into chat.
@@ -765,7 +919,7 @@ Wait about a minute, then check that today's file landed:
 ls -la "$HOME/Documents/second-brain/Daily/"
 ```
 
-A new file dated today should be there. Open it in Obsidian — it should contain your meetings (with full transcripts), open Linear issues, and recent Slack activity from the last 24 hours.
+A new file dated today should be there. Open it in Obsidian — it should contain your recent meetings (with full transcripts), open tasks assigned to you, and recent chat activity from the last 24 hours.
 
 <details>
 <summary><strong>Why <code>--dangerously-skip-permissions</code> is in the plist</strong></summary>
@@ -803,10 +957,10 @@ rm ~/Library/LaunchAgents/com.user.sync-second-brain.plist
 Each run writes `Daily/YYYY-MM-DD.md` with three sections:
 
 1. **Meetings** from the last 24 hours — for each one, the sync **also writes a full per-meeting file** to `raw-sources/granola-meetings/{date}-{slug}.md` (matching your existing archive: frontmatter, summary, full verbatim transcript). The Daily file shows the title, attendees, summary, and action items, with `[[wikilinks]]` to (a) the new per-meeting file and (b) any attendee who has a `wiki/people/` page. The Daily file does **not** inline the transcript — it lives in `raw-sources/`.
-2. **Linear issues** assigned to you (open, sorted by priority and recency), with direct `linear.app` URLs.
-3. **Slack** mentions and DMs awaiting your reply from the last 24 hours, with direct Slack permalinks.
+2. **Tasks / tickets** assigned to you (open, sorted by priority and recency), with direct links back to the source.
+3. **Chat** mentions and DMs awaiting your reply from the last 24 hours, with direct permalinks back to the source.
 
-A later run on the same day overwrites the Daily file (latest snapshot wins). Older days stay as a permanent log. The per-meeting files in `raw-sources/` are write-once — if a meeting already has a file (matched by `granola_id`), the sync leaves it alone.
+A later run on the same day overwrites the Daily file (latest snapshot wins). Older days stay as a permanent log. The per-meeting files in `raw-sources/` are write-once — if a meeting already has a file (matched by its source-specific ID in frontmatter), the sync leaves it alone.
 
 **Net effect on the graph:** Daily files are not orphans. Each one points into `raw-sources/granola-meetings/` and `wiki/people/`, so the new files appear naturally in Obsidian's graph view connected to your existing wiki.
 
@@ -821,7 +975,7 @@ A later run on the same day overwrites the Daily file (latest snapshot wins). Ol
 - New per-meeting files in `raw-sources/granola-meetings/` (if any meetings happened)
 - An entry in `~/{vault}/.logs/sync.out.log`
 
-**The morning habit that makes this work:** open `Daily/{today}.md` in Obsidian first thing — it's your inbox replacement. Five sections, two minutes to skim, every meeting / ticket / Slack thread you need to know about is there.
+**The morning habit that makes this work:** open `Daily/{today}.md` in Obsidian first thing — it's your inbox replacement. A few sections, two minutes to skim, every meeting / ticket / chat thread you need to know about is there.
 
 If you want explicit feedback that the job ran, add an `osascript` notification call to the plist or have it auto-open today's Daily file. Both are optional. Most people get used to silent operation quickly.
 
@@ -850,7 +1004,7 @@ Scan every page in the wiki/ folder and look for four kinds of decay:
 1. Stale claims — anything dated more than 30 days ago that may no longer be true ("as of [date]", "currently", "this week").
 2. Contradictions — pages that disagree with each other on the same fact.
 3. Over-generalized claims — universals like "every", "all", "always", "never" that may be too sweeping.
-4. Drifted statuses — project or ticket status in the wiki that may not match the latest Linear state.
+4. Drifted statuses — project or ticket status in the wiki that may not match the latest state in your task tracker.
 
 Write the report to wiki/reports/wiki-audit-YYYY-MM-DD.md. Group findings by file, with the questionable quote and your reasoning. Do not edit the wiki — just flag.
 ```
@@ -887,21 +1041,21 @@ Two common causes:
 </details>
 
 <details>
-<summary><strong>Granola rate-limited</strong></summary>
+<summary><strong>Source service rate-limited (e.g. Granola, Otter, Fireflies)</strong></summary>
 
-Wait a few minutes and re-run. The sync is idempotent and will pick up where it left off.
+Wait a few minutes and re-run. Syncs are idempotent and pick up where they left off.
 </details>
 
 <details>
-<summary><strong>Linear sync says "skipped — set LINEAR_API_KEY first"</strong></summary>
+<summary><strong>API-key sync says "skipped — set {SERVICE}_API_KEY first"</strong></summary>
 
-The env var is not set in the shell where you are running Claude. Either:
+For syncs that use the vendor's direct API (Linear, Jira, etc.), the env var isn't set in the shell where you're running Claude. Linear example — same shape for any other:
 
 ```bash
 export LINEAR_API_KEY=lin_api_…
 ```
 
-…right before running `/sync-linear`, OR add the line to `~/.zshrc` permanently and reload (`source ~/.zshrc`).
+…right before running the sync, OR add the line to `~/.zshrc` permanently and reload (`source ~/.zshrc`).
 </details>
 
 <details>
@@ -933,7 +1087,7 @@ Three causes, in likelihood order:
 
 1. **The target file doesn't exist yet.** Wikilinks like `[[Person Name]]` only resolve if `wiki/people/Person Name.md` exists. Dimmed links are a normal "red-link" state — they tell Claude to consider creating that page on the next `/wiki-refresh`.
 2. **Obsidian's link format setting is wrong.** Open Obsidian → Settings → Files & Links → New link format → set to "Shortest path when possible". Then Settings → Files & Links → "Use [[Wikilinks]]" → ON.
-3. **The sync ran before `wiki/people/` was populated.** Run `/sync-granola` first (it creates people pages from meeting attendees), then re-run `/sync-all`.
+3. **The sync ran before `wiki/people/` was populated.** Run your bulk meeting sync first (it creates people pages from meeting attendees), then re-run `/sync-all`.
 </details>
 
 <details>

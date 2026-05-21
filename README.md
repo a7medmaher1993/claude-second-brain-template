@@ -2,7 +2,9 @@
 
 A pattern for an **LLM-maintained personal knowledge base**. Built with Claude Code + Obsidian. macOS-first.
 
-Every morning at 10:00 AM the system pulls your last 24h of Granola meetings, Linear issues, and Slack mentions into a `Daily/{date}.md` snapshot. Each meeting (with full verbatim transcript) gets filed into `raw-sources/granola-meetings/`. The Daily file cross-links into a Claude-maintained wiki of people, projects, decisions, concepts — navigable as a clickable graph in Obsidian.
+Every morning at 10:00 AM the system pulls your last 24 hours of activity — meetings, tasks, chat messages, anything you connect — into a `Daily/{date}.md` snapshot. Each meeting (with full verbatim transcript) gets filed into `raw-sources/`. The Daily file cross-links into a Claude-maintained wiki of people, projects, decisions, concepts — navigable as a clickable graph in Obsidian.
+
+You decide which services it pulls from. The pattern works with any MCP server — Granola or Otter or Fathom for meetings, Linear or Jira or Asana for tasks, Slack or Discord or Teams for chat, plus anything else (email, calendar, docs, code, CRM). See [`docs/getting-started.md`](./docs/getting-started.md) Step 6 for the full menu.
 
 Pick a path.
 
@@ -12,7 +14,7 @@ Pick a path.
 
 Start from an empty folder; in 30 minutes you'll have a working vault with the daily sync automated.
 
-**The sync flavor here:** external sources (Granola / Linear / Slack) → your vault. Runs daily via `launchd` on macOS.
+**The sync flavor here:** external sources (any MCP-connected service — meetings, tasks, chat, email, docs, etc.) → your vault. Runs daily via `launchd` on macOS.
 
 → **[`docs/getting-started.md`](./docs/getting-started.md)** — the full 9-step guide.
 
@@ -35,19 +37,20 @@ You already have a second brain on one Mac. You want it on your laptop, your sec
 ```
 External sources              Your vault                  Obsidian
 ─────────────────             ────────────                ────────
-Granola  ──┐                  raw-sources/  ─┐
-Linear   ──┼─> /sync-all ──>  Daily/         ├──> graph view
-Slack    ──┘   (10am daily)   wiki/          │     (wikilinks
-                                              │      become
-Manual / occasional:                          │      clickable
-  /sync-granola, /sync-linear ──> raw-sources/    edges)
+Meetings ──┐                  raw-sources/  ─┐
+Tasks    ──┼─> /sync-all ──>  Daily/         ├──> graph view
+Chat     ──┤   (10am daily)   wiki/          │     (wikilinks
+…anything──┘                                  │      become
+                                              │      clickable
+Manual / occasional:                          │      edges)
+  /sync-{source}              ──> raw-sources/
   /wiki-refresh               ──> wiki/
 
 CLAUDE.md + Memory.md  ──> read by Claude every session
                               (context for every answer)
 ```
 
-- **`raw-sources/`** — immutable inputs. One file per Granola meeting (frontmatter + full transcript), one per Linear ticket export, one per Slack channel dump.
+- **`raw-sources/`** — immutable inputs. One file per meeting (frontmatter + full transcript), one per task / ticket export, one per chat channel dump.
 - **`Daily/`** — your morning inbox. One file per day, written by `/sync-all`.
 - **`wiki/`** — Claude-maintained synthesis. People, projects, concepts, decisions, reports. Cross-linked.
 - **`CLAUDE.md`** — the schema. Tells Claude how the system works. (You generate this in Step 4 by downloading Karpathy's gist + having Claude prepend bootstrap rules.)
