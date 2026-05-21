@@ -25,7 +25,7 @@ A folder on your Mac that:
 5. Opens in Obsidian as a navigable graph.
 6. Opens in Claude Code so you can ask questions about your own work and get answers grounded in your real history.
 
-You drive it with four slash commands, one shell alias, and one `launchd` job that fires the sync every morning. **You pick which external services it pulls from** — the pattern is generic; Step 6 lists 50+ MCPs across categories so you can wire up whichever stack you actually use.
+You drive it with four slash commands, one shell alias, and one `launchd` job that fires the sync every morning. **You pick which external services it pulls from** — the pattern is generic; Step 6 lists 85+ MCPs across categories so you can wire up whichever stack you actually use.
 
 ---
 
@@ -33,7 +33,7 @@ You drive it with four slash commands, one shell alias, and one `launchd` job th
 
 Before you start setting up, here's the shape of what you're building. Five moving parts:
 
-1. **External sources** — whichever services you want pulled in. Meetings (e.g. Granola, Otter, Fathom), tasks (Linear, Jira, Asana, Notion), chat (Slack, Discord, Teams), plus optionally email, calendar, docs, code, CRM. They live outside the vault. Claude reaches them through MCPs (Step 6 lists 50+ options).
+1. **External sources** — whichever services you want pulled in. Meetings (e.g. Granola, Otter, Fathom), tasks (Linear, Jira, Asana, Notion), chat (Slack, Discord, Teams), plus optionally email, calendar, docs, code, CRM. They live outside the vault. Claude reaches them through MCPs (Step 6 lists 85+ options).
 2. **`raw-sources/`** — the immutable archive. One markdown file per meeting (with frontmatter + full verbatim transcript), one per task / ticket export, one per chat channel dump, one per anything else you ingest. Claude reads from here; nothing else writes to it except the sync commands.
 3. **`wiki/`** — the curated synthesis. People, projects, concepts, decisions, reports. Cross-linked. This is what you actually read day-to-day. Claude maintains it.
 4. **`Daily/`** — your morning inbox. One file per day, written by `/sync-all`. Last 24 hours of meetings (with `[[wikilinks]]` into `raw-sources/` and `wiki/people/`), tasks assigned to you, chat mentions + DMs awaiting reply.
@@ -286,7 +286,7 @@ Then create the supporting files:
 
 Each slash command should be idempotent (re-running with no new sources is a no-op), quiet by default (only print at meaningful checkpoints), and fail-soft (one step failing logs to `wiki/log.md` and the chain continues).
 
-> **Note:** the prompt above uses Granola, Linear, and Slack as examples because they're popular. Substitute the services you actually use — see Step 6 for 50+ MCP options across categories. Claude will adapt the slash commands to whatever you tell it to use.
+> **Note:** the prompt above uses Granola, Linear, and Slack as examples because they're popular. Substitute the services you actually use — see Step 6 for 85+ MCP options across categories. Claude will adapt the slash commands to whatever you tell it to use.
 ```
 
 Claude reads the gist you saved, prepends bootstrap rules to your `CLAUDE.md`, and writes the supporting files to disk. Review the result. Adjust anything that does not match how you want to work.
