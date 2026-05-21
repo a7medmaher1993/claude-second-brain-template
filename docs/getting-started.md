@@ -189,12 +189,19 @@ second-brain/
 │   ├── {tasks}/               task / ticket exports — folder named after your tracker
 │   └── {chat}/                chat channel archives (opt-in) — folder named after your chat service
 │
-├── .claude/commands/          your slash commands (created in Step 4b)
-│   ├── sync-{meetings}.md     e.g. sync-granola.md, sync-otter.md, sync-fathom.md
-│   ├── sync-{tasks}.md        e.g. sync-linear.md, sync-jira.md, sync-asana.md
-│   ├── sync-all.md
-│   └── wiki-refresh.md
+├── .claude/commands/          your slash commands
+│   ├── sync-{meetings}.md     e.g. sync-granola.md, sync-otter.md, sync-fathom.md (created in Step 4b)
+│   ├── sync-{tasks}.md        e.g. sync-linear.md, sync-jira.md, sync-asana.md (created in Step 4b)
+│   ├── sync-all.md            ships as a template — customize for your sources
+│   └── wiki-refresh.md        ships as a template — read-only wiki audit
+│
+├── scripts/                   ready-to-run setup scripts (edit knobs at top)
+│   ├── install-brain-sync.sh        daily /sync-all via launchd (Step 9)
+│   └── install-cross-device-pull.sh hourly git pull on secondary devices
+│
+├── .github/workflows/         CI — weekly link-check on the docs
 ├── .logs/                     launchd job logs (Step 9 creates this)
+├── LICENSE                    MIT
 └── .gitignore                 keeps Memory.md and other personal files local
 ```
 
@@ -287,6 +294,8 @@ Then create the supporting files:
 Each slash command should be idempotent (re-running with no new sources is a no-op), quiet by default (only print at meaningful checkpoints), and fail-soft (one step failing logs to `wiki/log.md` and the chain continues).
 
 > **Note:** the prompt above uses Granola, Linear, and Slack as examples because they're popular. Substitute the services you actually use — see Step 6 for 85+ MCP options across categories. Claude will adapt the slash commands to whatever you tell it to use.
+
+> **Shortcut if you cloned the template:** `.claude/commands/sync-all.md` and `.claude/commands/wiki-refresh.md` already ship as starter templates with the right structure. You can either (a) use the prompt above to have Claude regenerate them customized to your stack, or (b) skip the prompt and just edit those two files directly. The templates have placeholder source names (`{source}`) and generic categories; replace with the services you connected in Step 6.
 ```
 
 Claude reads the gist you saved, prepends bootstrap rules to your `CLAUDE.md`, and writes the supporting files to disk. Review the result. Adjust anything that does not match how you want to work.
@@ -842,19 +851,32 @@ Once you have run `/sync-all` manually a few times and trust what it does, sched
 
 > **Why not Cowork?** Cowork's scheduled tasks run in a sandboxed Claude session that can't see your terminal-side slash commands, MCPs, or shell. `launchd` runs your actual `claude` CLI, so `/sync-all` works end-to-end.
 
-**1. Save the setup script.** From your shell:
+**1. Edit the knobs at the top of `scripts/install-brain-sync.sh`** (ships with this template):
 
 ```bash
-cat > ~/setup-brain-sync.sh <<'SH'
+# Inside scripts/install-brain-sync.sh:
+VAULT_DIR="$HOME/Documents/second-brain"   # ← your vault path
+HOUR=10                                    # ← 24-hour clock; 10 = 10:00 AM
+MINUTE=0
+```
+
+<details>
+<summary><strong>If you didn't clone from the template — full script to paste</strong></summary>
+
+If you're following the docs without cloning this repo, save this as `~/install-brain-sync.sh` (it's the same content the template ships):
+
+```bash
+cat > ~/install-brain-sync.sh <<'SH'
 #!/bin/bash
 set -euo pipefail
 
+VAULT_DIR="$HOME/Documents/second-brain"   # ← edit if your vault is elsewhere
+HOUR=10                                    # 24-hour clock
+MINUTE=0
+
 LABEL="com.user.sync-second-brain"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-VAULT_DIR="$HOME/Documents/second-brain"   # ← edit if your vault is elsewhere
 LOG_DIR="$VAULT_DIR/.logs"
-HOUR=10                                    # 24-hour clock; 10 = 10:00 AM
-MINUTE=0
 
 CLAUDE_BIN="$(command -v claude || true)"
 [ -z "$CLAUDE_BIN" ] && { echo "claude not in PATH"; exit 1; }
@@ -897,12 +919,12 @@ echo "✓ Loaded. Next run: ${HOUR}:$(printf %02d $MINUTE) daily."
 SH
 ```
 
-Edit the `VAULT_DIR` and `HOUR`/`MINUTE` lines at the top of the script to match your vault and preferred time.
+</details>
 
 **2. Run it once.**
 
 ```bash
-bash ~/setup-brain-sync.sh
+bash scripts/install-brain-sync.sh   # (or ~/install-brain-sync.sh if you pasted manually)
 ```
 
 You should see `✓ Loaded`.
@@ -941,8 +963,8 @@ launchctl print gui/$UID/com.user.sync-second-brain | grep -E 'state|next'
 tail -f "$HOME/Documents/second-brain/.logs/sync.out.log"
 tail -f "$HOME/Documents/second-brain/.logs/sync.err.log"
 
-# Change the time: edit HOUR/MINUTE in setup-brain-sync.sh, then re-run it
-bash ~/setup-brain-sync.sh
+# Change the time: edit HOUR/MINUTE in scripts/install-brain-sync.sh, then re-run it
+bash scripts/install-brain-sync.sh
 
 # Uninstall completely
 launchctl bootout gui/$UID/com.user.sync-second-brain
@@ -1075,7 +1097,7 @@ caffeinate -d &
 
 When `claude` runs in `-p` (print) mode with no user present, every tool call (MCP search, file write) normally triggers an interactive permission prompt — and those auto-deny when nobody's around to answer. Result: empty file, all sources marked "skipped — permission denied" in the stderr log.
 
-Fix: the launchd plist must invoke claude with `--dangerously-skip-permissions`. Check that line in `~/Library/LaunchAgents/com.user.sync-second-brain.plist` (Step 9). If you wrote the plist without it, edit `~/setup-brain-sync.sh` and re-run.
+Fix: the launchd plist must invoke claude with `--dangerously-skip-permissions`. Check that line in `~/Library/LaunchAgents/com.user.sync-second-brain.plist` (Step 9). If you wrote the plist without it, edit `scripts/install-brain-sync.sh` and re-run.
 
 The flag is only safe for slash commands you've reviewed (like `/sync-all`). Don't put it in plists that run untrusted prompts.
 </details>

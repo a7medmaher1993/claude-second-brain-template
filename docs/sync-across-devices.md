@@ -62,16 +62,31 @@ ls
 
 A LaunchAgent runs `git pull --rebase --autostash` every hour + once at login. Zero effort thereafter.
 
-Save this as `~/install-brain-pull.sh` on the new device and run it once:
+This template ships a ready-to-run script. Edit one line at the top of `scripts/install-cross-device-pull.sh`:
+
+```bash
+REPO_DIR="$HOME/Documents/second-brain"    # ← your vault clone path on this device
+```
+
+Then run it:
+
+```bash
+bash scripts/install-cross-device-pull.sh
+```
+
+<details>
+<summary><strong>If you didn't clone the template — full script to paste manually</strong></summary>
 
 ```bash
 cat > ~/install-brain-pull.sh <<'SH'
 #!/bin/bash
 set -euo pipefail
 
+REPO_DIR="$HOME/Documents/second-brain"   # ← edit to your clone path
+INTERVAL_SECONDS=3600
+
 LABEL="com.user.brain-pull"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-REPO_DIR="$HOME/Documents/YOUR_BRAIN_REPO"  # ← edit to your clone path
 LOG="$HOME/Library/Logs/brain-pull.log"
 
 cat > "$PLIST" <<PLIST_EOF
@@ -86,7 +101,7 @@ cat > "$PLIST" <<PLIST_EOF
     <string>-lc</string>
     <string>cd "$REPO_DIR" && /usr/bin/git pull --rebase --autostash >> "$LOG" 2>&1 && echo "[\$(date +%F\\ %T)] sync OK" >> "$LOG"</string>
   </array>
-  <key>StartInterval</key><integer>3600</integer>
+  <key>StartInterval</key><integer>$INTERVAL_SECONDS</integer>
   <key>RunAtLoad</key><true/>
   <key>StandardOutPath</key><string>$LOG</string>
   <key>StandardErrorPath</key><string>$LOG</string>
@@ -102,6 +117,8 @@ echo "Log: $LOG"
 SH
 bash ~/install-brain-pull.sh
 ```
+
+</details>
 
 Confirm:
 
