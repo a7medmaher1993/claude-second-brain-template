@@ -1,7 +1,7 @@
 ---
 type: setup-guide
 audience: anyone setting up a second brain
-updated: 2026-05-21
+updated: 2026-05-23
 ---
 
 # Getting started — second brain
@@ -60,8 +60,8 @@ Everything is plain markdown. Obsidian renders the `[[wikilinks]]` as a clickabl
 5. Create `Memory.md`
 6. Connect data sources
 7. Run the first sync
-8. Daily usage
-9. Automate the daily sync
+8. Automate the daily sync
+9. Daily usage
 
 ---
 
@@ -793,59 +793,7 @@ Errors never destroy data. The script never deletes anything. Worst case, you re
 
 ---
 
-## 8. Daily usage
-
-Assuming you've enabled Step 9's automation, your daily loop is:
-
-1. **Morning — open `Daily/{today}.md` in Obsidian.** The sync wrote it silently at 10:00 AM. Skim the sections: meetings (with full-transcript wikilinks), tasks assigned to you, chat mentions + DMs. Two minutes to know what's pending.
-2. **Follow wikilinks** as things interest you — clicking a meeting title jumps you into the full transcript in `raw-sources/`; clicking a colleague's name jumps to their wiki page.
-3. **Ask the brain** when context matters. Type `brain` in any terminal, then ask. It reads `Memory.md`, `CLAUDE.md`, and `wiki/index.md` silently first, so every answer is grounded in your actual history.
-4. **File good answers back** — when Claude synthesizes something useful, tell it `file this as a decision page` or `add this as a concept page`. Explorations compound into the encyclopedia instead of disappearing into chat.
-5. **Don't run `/sync-all` manually** unless launchd missed a fire. The job is automatic; the file is fresh when you wake up.
-
-<details>
-<summary><strong>What to ask</strong></summary>
-
-Ask the brain when the answer depends on your context:
-
-- "What did [person] say about [topic] at the last call?"
-- "Where is the current state of [project]?"
-- "What did we decide about [thing]?"
-- "Show me every meeting where [concept] came up."
-- "Who is working on [project] and what did they say recently?"
-
-Ask Claude (without the vault) for general knowledge that does not need your history.
-</details>
-
-<details>
-<summary><strong>Saving good answers back into the wiki</strong></summary>
-
-When Claude gives a useful synthesized answer (a comparison, an analysis, a connection you had not seen), tell it:
-
-> file this as a decision page
-
-or
-
-> add this as a concept page
-
-The next session inherits it. Explorations compound into the encyclopedia instead of disappearing into chat history.
-</details>
-
-<details>
-<summary><strong>When to push back on Claude</strong></summary>
-
-The wiki is a draft, not a verdict. The LLM is wrong sometimes. Watch for:
-
-- **Universal claims** ("every", "all", "always", "never"). Sanity-check before quoting.
-- **Old "current state" claims.** A page that says "as of [date]" with a date more than two weeks ago is probably stale.
-- **Confident statements on topics you have not filed sources about.** Hallucination territory.
-
-When you spot something wrong, correct Claude in conversation and ask it to update the relevant wiki page. The fix cascades.
-</details>
-
----
-
-## 9. Automate the daily sync
+## 8. Automate the daily sync
 
 Once you have run `/sync-all` manually a few times and trust what it does, schedule it to fire automatically with macOS `launchd` — the system's native scheduler. It survives reboots, catches up missed runs after sleep, and runs in your real shell with full access to your `claude` binary and your MCPs.
 
@@ -1001,6 +949,58 @@ A later run on the same day overwrites the Daily file (latest snapshot wins). Ol
 
 If you want explicit feedback that the job ran, add an `osascript` notification call to the plist or have it auto-open today's Daily file. Both are optional. Most people get used to silent operation quickly.
 
+</details>
+
+---
+
+## 9. Daily usage
+
+Assuming you've enabled Step 8's automation, your daily loop is:
+
+1. **Morning — open `Daily/{today}.md` in Obsidian.** The sync wrote it silently at 10:00 AM. Skim the sections: meetings (with full-transcript wikilinks), tasks assigned to you, chat mentions + DMs. Two minutes to know what's pending.
+2. **Follow wikilinks** as things interest you — clicking a meeting title jumps you into the full transcript in `raw-sources/`; clicking a colleague's name jumps to their wiki page.
+3. **Ask the brain** when context matters. Type `brain` in any terminal, then ask. It reads `Memory.md`, `CLAUDE.md`, and `wiki/index.md` silently first, so every answer is grounded in your actual history.
+4. **File good answers back** — when Claude synthesizes something useful, tell it `file this as a decision page` or `add this as a concept page`. Explorations compound into the encyclopedia instead of disappearing into chat.
+5. **Don't run `/sync-all` manually** unless launchd missed a fire. The job is automatic; the file is fresh when you wake up.
+
+<details>
+<summary><strong>What to ask</strong></summary>
+
+Ask the brain when the answer depends on your context:
+
+- "What did [person] say about [topic] at the last call?"
+- "Where is the current state of [project]?"
+- "What did we decide about [thing]?"
+- "Show me every meeting where [concept] came up."
+- "Who is working on [project] and what did they say recently?"
+
+Ask Claude (without the vault) for general knowledge that does not need your history.
+</details>
+
+<details>
+<summary><strong>Saving good answers back into the wiki</strong></summary>
+
+When Claude gives a useful synthesized answer (a comparison, an analysis, a connection you had not seen), tell it:
+
+> file this as a decision page
+
+or
+
+> add this as a concept page
+
+The next session inherits it. Explorations compound into the encyclopedia instead of disappearing into chat history.
+</details>
+
+<details>
+<summary><strong>When to push back on Claude</strong></summary>
+
+The wiki is a draft, not a verdict. The LLM is wrong sometimes. Watch for:
+
+- **Universal claims** ("every", "all", "always", "never"). Sanity-check before quoting.
+- **Old "current state" claims.** A page that says "as of [date]" with a date more than two weeks ago is probably stale.
+- **Confident statements on topics you have not filed sources about.** Hallucination territory.
+
+When you spot something wrong, correct Claude in conversation and ask it to update the relevant wiki page. The fix cascades.
 </details>
 
 ---
