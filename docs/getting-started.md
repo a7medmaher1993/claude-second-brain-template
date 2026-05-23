@@ -797,7 +797,7 @@ Errors never destroy data. The script never deletes anything. Worst case, you re
 
 Once you have run `/sync-all` manually a few times and trust what it does, schedule it to fire automatically with macOS `launchd` — the system's native scheduler. It survives reboots, catches up missed runs after sleep, and runs in your real shell with full access to your `claude` binary and your MCPs.
 
-> **Why not Cowork?** Cowork's scheduled tasks run in a sandboxed Claude session that can't see your terminal-side slash commands, MCPs, or shell. `launchd` runs your actual `claude` CLI, so `/sync-all` works end-to-end.
+> **All commands in this step run in your shell** (not inside Claude Code). The whole point of `launchd` is that it runs `claude` for you on schedule — you never have to invoke `/sync-all` manually once this is set up.
 
 **1. Edit the knobs at the top of `scripts/install-brain-sync.sh`** (ships with this template):
 
@@ -926,13 +926,13 @@ rm ~/Library/LaunchAgents/com.user.sync-second-brain.plist
 
 Each run writes `Daily/YYYY-MM-DD.md` with three sections:
 
-1. **Meetings** from the last 24 hours — for each one, the sync **also writes a full per-meeting file** to `raw-sources/granola-meetings/{date}-{slug}.md` (matching your existing archive: frontmatter, summary, full verbatim transcript). The Daily file shows the title, attendees, summary, and action items, with `[[wikilinks]]` to (a) the new per-meeting file and (b) any attendee who has a `wiki/people/` page. The Daily file does **not** inline the transcript — it lives in `raw-sources/`.
+1. **Meetings** from the last 24 hours — for each one, the sync **also writes a full per-meeting file** to `raw-sources/{source}-meetings/{date}-{slug}.md` (matching your existing archive: frontmatter, summary, full verbatim transcript). The Daily file shows the title, attendees, summary, and action items, with `[[wikilinks]]` to (a) the new per-meeting file and (b) any attendee who has a `wiki/people/` page. The Daily file does **not** inline the transcript — it lives in `raw-sources/`.
 2. **Tasks / tickets** assigned to you (open, sorted by priority and recency), with direct links back to the source.
 3. **Chat** mentions and DMs awaiting your reply from the last 24 hours, with direct permalinks back to the source.
 
 A later run on the same day overwrites the Daily file (latest snapshot wins). Older days stay as a permanent log. The per-meeting files in `raw-sources/` are write-once — if a meeting already has a file (matched by its source-specific ID in frontmatter), the sync leaves it alone.
 
-**Net effect on the graph:** Daily files are not orphans. Each one points into `raw-sources/granola-meetings/` and `wiki/people/`, so the new files appear naturally in Obsidian's graph view connected to your existing wiki.
+**Net effect on the graph:** Daily files are not orphans. Each one points into `raw-sources/{source}-meetings/` and `wiki/people/`, so the new files appear naturally in Obsidian's graph view connected to your existing wiki.
 
 </details>
 
@@ -942,7 +942,7 @@ A later run on the same day overwrites the Daily file (latest snapshot wins). Ol
 `launchd` doesn't open a Terminal window, doesn't show a Dock icon, doesn't send a notification when it fires. At your scheduled time the sync just runs invisibly and exits. The only evidence is:
 
 - A new file in `Daily/`
-- New per-meeting files in `raw-sources/granola-meetings/` (if any meetings happened)
+- New per-meeting files in `raw-sources/{source}-meetings/` (if any meetings happened)
 - An entry in `~/{vault}/.logs/sync.out.log`
 
 **The morning habit that makes this work:** open `Daily/{today}.md` in Obsidian first thing — it's your inbox replacement. A few sections, two minutes to skim, every meeting / ticket / chat thread you need to know about is there.
